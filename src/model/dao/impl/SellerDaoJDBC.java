@@ -24,7 +24,6 @@ public class SellerDaoJDBC implements SellerDao {
 		this.conn = conn;
 	}
 
-	// -------------------- INSERT --------------------
 	@Override
 	public void insert(Seller obj) {
 		PreparedStatement st = null;
@@ -56,13 +55,12 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// -------------------- UPDATE --------------------
 	@Override
 	public void update(Seller obj) {
 		PreparedStatement st = null;
 		try {
 			st = conn.prepareStatement("UPDATE seller "
-					+ "SET Name=?, Email=?, BirthDate=?, BaseSalary=?, DepartmentId=? " + "WHERE Id=?");
+					+ "SET Name = ?, Email = ?, BirthDate = ?, BaseSalary = ?, DepartmentId = ? " + "WHERE Id = ?");
 
 			st.setString(1, obj.getName());
 			st.setString(2, obj.getEmail());
@@ -79,14 +77,17 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// -------------------- DELETE --------------------
 	@Override
 	public void deleteById(Integer id) {
 		PreparedStatement st = null;
 		try {
 			st = conn.prepareStatement("DELETE FROM seller WHERE Id = ?");
 			st.setInt(1, id);
-			st.executeUpdate();
+
+			int rows = st.executeUpdate();
+			if (rows == 0) {
+				throw new DbException("Id not found");
+			}
 		} catch (SQLException e) {
 			throw new DbException(e.getMessage());
 		} finally {
@@ -94,14 +95,13 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// -------------------- FIND BY ID --------------------
 	@Override
 	public Seller findById(Integer id) {
 		PreparedStatement st = null;
 		ResultSet rs = null;
 		try {
 			st = conn.prepareStatement(
-					"SELECT seller.*, department.Name as DepName " + "FROM seller INNER JOIN department "
+					"SELECT seller.*, department.Name AS DepName " + "FROM seller INNER JOIN department "
 							+ "ON seller.DepartmentId = department.Id " + "WHERE seller.Id = ?");
 
 			st.setInt(1, id);
@@ -120,15 +120,14 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// -------------------- FIND ALL --------------------
 	@Override
 	public List<Seller> findAll() {
 		PreparedStatement st = null;
 		ResultSet rs = null;
 		try {
 			st = conn.prepareStatement(
-					"SELECT seller.*, department.Name as DepName " + "FROM seller INNER JOIN department "
-							+ "ON seller.DepartmentId = department.Id " + "ORDER BY Name");
+					"SELECT seller.*, department.Name AS DepName " + "FROM seller INNER JOIN department "
+							+ "ON seller.DepartmentId = department.Id " + "ORDER BY seller.Name");
 
 			rs = st.executeQuery();
 
@@ -136,11 +135,12 @@ public class SellerDaoJDBC implements SellerDao {
 			Map<Integer, Department> map = new HashMap<>();
 
 			while (rs.next()) {
-				Department dep = map.get(rs.getInt("DepartmentId"));
+				Integer depId = rs.getInt("DepartmentId");
+				Department dep = map.get(depId);
 
 				if (dep == null) {
 					dep = instantiateDepartment(rs);
-					map.put(rs.getInt("DepartmentId"), dep);
+					map.put(depId, dep);
 				}
 
 				Seller obj = instantiateSeller(rs, dep);
@@ -155,15 +155,14 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// -------------------- FIND BY DEPARTMENT --------------------
 	@Override
 	public List<Seller> findByDepartment(Department department) {
 		PreparedStatement st = null;
 		ResultSet rs = null;
 		try {
-			st = conn.prepareStatement(
-					"SELECT seller.*, department.Name as DepName " + "FROM seller INNER JOIN department "
-							+ "ON seller.DepartmentId = department.Id " + "WHERE DepartmentId = ? " + "ORDER BY Name");
+			st = conn.prepareStatement("SELECT seller.*, department.Name AS DepName "
+					+ "FROM seller INNER JOIN department " + "ON seller.DepartmentId = department.Id "
+					+ "WHERE seller.DepartmentId = ? " + "ORDER BY seller.Name");
 
 			st.setInt(1, department.getId());
 			rs = st.executeQuery();
@@ -172,11 +171,12 @@ public class SellerDaoJDBC implements SellerDao {
 			Map<Integer, Department> map = new HashMap<>();
 
 			while (rs.next()) {
-				Department dep = map.get(rs.getInt("DepartmentId"));
+				Integer depId = rs.getInt("DepartmentId");
+				Department dep = map.get(depId);
 
 				if (dep == null) {
 					dep = instantiateDepartment(rs);
-					map.put(rs.getInt("DepartmentId"), dep);
+					map.put(depId, dep);
 				}
 
 				Seller obj = instantiateSeller(rs, dep);
@@ -191,15 +191,13 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// -------------------- AUX METHODS --------------------
-
 	private Seller instantiateSeller(ResultSet rs, Department dep) throws SQLException {
 		Seller obj = new Seller();
 		obj.setId(rs.getInt("Id"));
 		obj.setName(rs.getString("Name"));
 		obj.setEmail(rs.getString("Email"));
-		obj.setBaseSalary(rs.getDouble("BaseSalary"));
 		obj.setBirthDate(rs.getDate("BirthDate"));
+		obj.setBaseSalary(rs.getDouble("BaseSalary"));
 		obj.setDepartment(dep);
 		return obj;
 	}
