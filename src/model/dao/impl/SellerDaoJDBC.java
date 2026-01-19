@@ -50,8 +50,8 @@ public class SellerDaoJDBC implements SellerDao {
 	public void update(Seller obj) {
 		PreparedStatement st = null;
 		try {
-			st = conn.prepareStatement("UPDATE seller "
-					+ "SET Name=?, Email=?, BirthDate=?, BaseSalary=?, DepartmentId=? " + "WHERE Id=?");
+			st = conn.prepareStatement(
+					"UPDATE seller SET Name=?, Email=?, BirthDate=?, BaseSalary=?, DepartmentId=? WHERE Id=?");
 
 			st.setString(1, obj.getName());
 			st.setString(2, obj.getEmail());
@@ -127,7 +127,6 @@ public class SellerDaoJDBC implements SellerDao {
 			Map<Integer, Department> map = new HashMap<>();
 
 			while (rs.next()) {
-
 				Integer depId = rs.getInt("DepartmentId");
 				Department dep = map.get(depId);
 
@@ -148,7 +147,45 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 
-	// ==================== REUSING INSTANTIATION ====================
+	// -------------------- FIND BY DEPARTMENT --------------------
+	@Override
+	public List<Seller> findByDepartment(Department department) {
+		PreparedStatement st = null;
+		ResultSet rs = null;
+
+		try {
+			st = conn.prepareStatement(
+					"SELECT seller.*, department.Name as DepName " + "FROM seller INNER JOIN department "
+							+ "ON seller.DepartmentId = department.Id " + "WHERE DepartmentId = ? " + "ORDER BY Name");
+
+			st.setInt(1, department.getId());
+			rs = st.executeQuery();
+
+			List<Seller> list = new ArrayList<>();
+			Map<Integer, Department> map = new HashMap<>();
+
+			while (rs.next()) {
+				Integer depId = rs.getInt("DepartmentId");
+				Department dep = map.get(depId);
+
+				if (dep == null) {
+					dep = instantiateDepartment(rs);
+					map.put(depId, dep);
+				}
+
+				Seller seller = instantiateSeller(rs, dep);
+				list.add(seller);
+			}
+			return list;
+		} catch (SQLException e) {
+			throw new DbException(e.getMessage());
+		} finally {
+			DB.closeResultSet(rs);
+			DB.closeStatement(st);
+		}
+	}
+
+	// -------------------- AUX METHODS --------------------
 
 	private Seller instantiateSeller(ResultSet rs, Department dep) throws SQLException {
 		Seller obj = new Seller();
@@ -166,17 +203,5 @@ public class SellerDaoJDBC implements SellerDao {
 		dep.setId(rs.getInt("DepartmentId"));
 		dep.setName(rs.getString("DepName"));
 		return dep;
-	}
-
-	@Override
-	public void insert(SellerDao obj) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void update(SellerDao obj) {
-		// TODO Auto-generated method stub
-		
 	}
 }
